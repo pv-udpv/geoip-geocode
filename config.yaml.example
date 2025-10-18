@@ -1,0 +1,23 @@
+# Example YAML configuration for geoip-geocode
+# Copy to config.yaml and customize
+
+default_provider: geoip2
+cache_enabled: false
+cache_ttl: 3600
+
+providers:
+  - name: geoip2
+    enabled: true
+    priority: 100
+    database_path: ./GeoLite2-City.mmdb
+    timeout: 30
+    max_retries: 3
+
+# You can add more providers here in the future
+# Example:
+#  - name: ipapi
+#    enabled: false
+#    priority: 50
+#    api_key: your_api_key
+#    base_url: https://ipapi.com/api
+#    timeout: 30
