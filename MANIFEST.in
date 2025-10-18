@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include CONTRIBUTING.md
+include IMPLEMENTATION.md
+include .env.example
+include config.yaml.example
+include examples.py
+recursive-include geoip_geocode *.py
+recursive-include tests *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
