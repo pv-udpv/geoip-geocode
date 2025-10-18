@@ -13,6 +13,23 @@ providers:
     timeout: 30
     max_retries: 3
 
+# Multi-database configuration with City + ASN databases
+# Provides enriched data including ASN information
+#  - name: geoip2-enriched
+#    enabled: true
+#    priority: 200
+#    city_database_path: ./GeoLite2-City.mmdb
+#    asn_database_path: ./GeoLite2-ASN.mmdb
+#    timeout: 30
+
+# Cache configuration (optional)
+# Significantly improves performance for repeated lookups
+# cache:
+#   enabled: true
+#   backend: lru
+#   max_size: 10000    # Maximum number of cached IPs
+#   ttl: 3600          # Cache TTL in seconds (1 hour)
+
 # You can add more providers here in the future
 # Example:
 #  - name: ipapi
