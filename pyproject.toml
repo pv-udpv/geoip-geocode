@@ -42,12 +42,18 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.5.0",
 ]
+docs = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+    "mkdocstrings[python]>=0.24.0",
+    "mkdocs-jupyter>=0.24.0",
+]
 
 [project.scripts]
 geoip-geocode = "geoip_geocode.cli:app"
 
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
 include = ["geoip_geocode*"]
 
 [tool.black]
