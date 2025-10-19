@@ -46,15 +46,13 @@ htmlcov/
 .env.local
 
 # MaxMind databases
-# Keep .mmdb files in git for this project
-# *.mmdb
+*.mmdb
 GeoLite2-*.tar.gz
 GeoIP2-*.tar.gz
 
 # IP2Location databases
-# Keep .BIN and .ZIP files in git for this project
-# *.BIN
-# *.ZIP
+*.BIN
+*.ZIP
 
 # Configuration
 # Updated to use config/ directory
