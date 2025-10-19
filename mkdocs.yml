@@ -1,0 +1,94 @@
+site_name: geoip-geocode
+site_description: Geocoding and IP lookup tools with support for multiple providers
+site_url: https://github.com/pv-udpv/geoip-geocode
+repo_url: https://github.com/pv-udpv/geoip-geocode
+repo_name: pv-udpv/geoip-geocode
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            merge_init_into_class: true
+  - mkdocs-jupyter:
+      include_source: true
+      execute: false
+
+nav:
+  - Home: index.md
+  - User Guide:
+      - Quick Start: user-guide/QUICKSTART.md
+      - Implementation: user-guide/IMPLEMENTATION.md
+  - Providers:
+      - Overview: providers/overview.md
+      - GeoIP2: providers/geoip2.md
+      - IP2Location: providers/ip2location.md
+  - How-to Guides:
+      - Multi-Database Caching: guides/MULTI_DATABASE_CACHING.md
+  - API Reference:
+      - Models: api-reference/models.md
+      - Providers: api-reference/providers.md
+      - Cache: api-reference/cache.md
+      - Config: api-reference/config.md
+      - Registry: api-reference/registry.md
+      - CLI: api-reference/cli.md
+  - Development:
+      - Contributing: development/CONTRIBUTING.md
+      - Code Improvements: development/code_improvement_recommendations.md
+  - Notebooks:
+      - Analysis: notebooks/analysis.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/pv-udpv/geoip-geocode
