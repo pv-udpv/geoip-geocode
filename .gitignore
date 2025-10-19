@@ -28,7 +28,6 @@ env/
 .venv
 
 # IDE
-.vscode/
 .idea/
 *.swp
 *.swo
@@ -47,15 +46,28 @@ htmlcov/
 .env.local
 
 # MaxMind databases
-*.mmdb
+# Keep .mmdb files in git for this project
+# *.mmdb
 GeoLite2-*.tar.gz
 GeoIP2-*.tar.gz
 
+# IP2Location databases
+# Keep .BIN and .ZIP files in git for this project
+# *.BIN
+# *.ZIP
+
 # Configuration
-config.yaml
-config.yml
+# Updated to use config/ directory
+config/config.yaml
+config/config.yml
+!config/config.yaml.example
+!config/.env.example
 !config.yaml.example
 !.env.example
+
+# MkDocs
+site/
+.mkdocs_cache/
 
 # Logs
 *.log
@@ -67,7 +79,3 @@ dmypy.json
 
 # ruff
 .ruff_cache/
-data/databases/IP2LOCATION-LITE-ASN.BIN
-data/databases/IP2LOCATION-LITE-ASN.BIN.ZIP
-data/databases/IP2LOCATION-LITE-DB11.BIN
-data/databases/IP2LOCATION-LITE-DB11.BIN.ZIP
