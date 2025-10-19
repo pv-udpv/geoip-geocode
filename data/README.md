@@ -18,6 +18,6 @@ The `databases/` directory contains:
 
 ## Notes
 
-- Database files are tracked in git for this project
+- Database files are not tracked in git for this project
 - Keep databases updated regularly for accurate geolocation
 - See provider documentation for download instructions
