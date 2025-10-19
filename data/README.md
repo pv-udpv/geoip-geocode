@@ -11,6 +11,7 @@ This directory contains data files used by the geoip-geocode package.
 ## Database Files
 
 The `databases/` directory contains:
+
 - **GeoLite2-City.mmdb** - MaxMind GeoIP2 City database
 - **GeoLite2-ASN.mmdb** - MaxMind GeoIP2 ASN database
 - **IP2LOCATION-LITE-DB11.BIN** - IP2Location database

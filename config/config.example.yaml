@@ -1,0 +1,74 @@
+default_provider: geoip2
+locales:
+- en
+cache:
+  enabled: false
+  backend: lru
+  max_size: 100000
+  ttl: 3600
+matching_rules:
+- name: private_networks
+  description: Private/internal IP addresses
+  enabled: true
+  priority: 10
+  conditions:
+  - type: ip_range
+    values:
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 127.0.0.0/8
+    negate: false
+  match_all: true
+  provider: geoip2
+- name: ipv6_addresses
+  description: IPv6 addresses
+  enabled: true
+  priority: 20
+  conditions:
+  - type: ip_version
+    values:
+    - '6'
+    negate: false
+  match_all: true
+  provider: geoip2
+- name: asian_countries
+  description: Asian countries with better IP2Location coverage
+  enabled: true
+  priority: 30
+  conditions:
+  - type: country
+    values:
+    - CN
+    - JP
+    - KR
+    - IN
+    - ID
+    - TH
+    - VN
+    - PH
+    - MY
+    negate: false
+  match_all: true
+  provider: ip2location
+  fallback_provider: geoip2
+- name: european_countries
+  description: European countries
+  enabled: true
+  priority: 40
+  conditions:
+  - type: continent
+    values:
+    - EU
+    negate: false
+  match_all: true
+  provider: geoip2
+providers:
+- name: geoip2
+  enabled: true
+  priority: 100
+  description: MaxMind GeoIP2 / GeoLite2 database provider
+  locales:
+  - en
+  timeout: 30
+  max_retries: 3

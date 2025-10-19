@@ -1,0 +1,117 @@
+# Standard Configuration for geoip-geocode
+# Balanced configuration for typical production use
+# Includes multiple providers, localization, and basic matching rules
+
+default_provider: geoip2
+
+# Locales for localized data (country/city names)
+# First locale is preferred, fallback to next if not available
+locales:
+  - en  # English (recommended as primary)
+  - ru  # Russian
+
+# Cache configuration for improved performance
+cache:
+  enabled: true
+  backend: lru
+  max_size: 100000  # Number of cached IP lookups
+  ttl: 3600        # Cache time-to-live (1 hour)
+
+# Matching rules - select provider based on IP characteristics
+# Rules evaluated in priority order (lower number = higher priority)
+matching_rules:
+  # Private/Local networks
+  - name: private_networks
+    enabled: true
+    priority: 10
+    conditions:
+      - type: ip_range
+        values:
+          - "10.0.0.0/8"
+          - "172.16.0.0/12"
+          - "192.168.0.0/16"
+          - "127.0.0.0/8"
+    provider: geoip2
+  
+  # IPv6 addresses
+  - name: ipv6_traffic
+    enabled: true
+    priority: 20
+    conditions:
+      - type: ip_version
+        values:
+          - "6"
+    provider: geoip2
+
+# Provider configurations
+# Priority: lower number = tried first (1=highest, 999=lowest)
+providers:
+  # MaxMind GeoIP2 Provider (Primary)
+  - name: geoip2
+    enabled: true
+    priority: 100
+    description: "MaxMind GeoIP2 / GeoLite2 database provider"
+    
+    locales:
+      - en
+      - ru
+    
+    database:
+      dir: ./data/databases/maxmind
+      editions:
+        city: GeoLite2-City.mmdb
+        asn: GeoLite2-ASN.mmdb
+        country: GeoLite2-Country.mmdb
+    
+    timeout: 30
+    max_retries: 3
+    
+    # Auto-update configuration (requires MaxMind account)
+    # Set MAXMIND_ACCOUNT_ID and MAXMIND_LICENSE_KEY in .env
+    auto_update:
+      enabled: false
+      schedule: "0 3 * * 2"  # 3 AM every Tuesday
+
+  # IP2Location Provider (Fallback)
+  - name: ip2location
+    enabled: true
+    priority: 200
+    description: "IP2Location database provider"
+    
+    locales:
+      - en
+      - ru
+    
+    database:
+      dir: ./data/databases/ip2location
+      compressed: zip
+      extension: BIN
+      tier: LITE
+    
+    variants:
+      country:
+        - DB1
+      city:
+        - DB3
+        - DB11
+      asn:
+        - DBASN
+    
+    export:
+      - country
+      - city
+      - asn
+    
+    timeout: 30
+    max_retries: 3
+
+# Environment Variables Required:
+# For MaxMind auto-update:
+#   MAXMIND_ACCOUNT_ID - Your MaxMind account ID
+#   MAXMIND_LICENSE_KEY - Your MaxMind license key
+#
+# For IP2Location:
+#   IP2LOCATION_TOKEN - Download token
+#   IP2LOCATION_PRODUCT_CODE - Product code (e.g., DB11LITE)
+#
+# See .env.example for complete list

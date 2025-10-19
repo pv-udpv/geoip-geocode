@@ -1,3 +1,12 @@
+---
+runme:
+  document:
+    relativePath: README.md
+  session:
+    id: 01K7Y780YWYNDQ18DSA4YKW9SF
+    updated: 2025-10-19 17:31:03+03:00
+---
+
 # geoip-geocode
 
 Geocoding and IP lookup tools with support for multiple providers.
@@ -8,8 +17,7 @@ Geocoding and IP lookup tools with support for multiple providers.
 
 - 🌍 **Multiple Provider Support**: Extensible provider registry system
 - 🔌 **GeoIP2/MaxMind Integration**: Built-in support for MaxMind databases
-- 🗺️ **IP2Location Support**: Alternative provider with IP2Location databases
-- 🔄 **Auto-Update**: Automatic database downloads from MaxMind and IP2Location
+- 🗺️ **IP*******on Support**: Alternative provider with IP*******on databases
 - ⚙️ **Flexible Configuration**: Configure via Pydantic models, .env, or YAML files
 - 🖥️ **CLI Interface**: Powerful command-line tool using Typer
 - 📊 __Structured Data__: GeoData objects indexed by geoname_id
@@ -55,21 +63,21 @@ Run the health check script to verify everything is set up correctly:
 Look up an IP address:
 
 ```bash
-# Basic lookup (requires GeoLite2-City.mmdb in current directory)
-geoip-geocode lookup 8.8.8.8
+# Basic lookup (requires Ge**************db in current directory)
+geoip-geocode lookup 8.***.8
 
 # Specify database path
-geoip-geocode lookup 8.8.8.8 --database /path/to/GeoLite2-City.mmdb
+geoip-geocode lookup 8.***.8 --database /path/to/Ge**************db
 
 # Use configuration file
-geoip-geocode lookup 8.8.8.8 --config config.yaml
+geoip-geocode lookup 8.***.8 --config config.yaml
 
 ```
 
 Initialize a configuration file:
 
 ```bash
-geoip-geocode config-init --database /path/to/GeoLite2-City.mmdb
+geoip-geocode config-init --database /path/to/Ge**************db
 
 ```
 
@@ -89,24 +97,24 @@ geoip-geocode update-db --license-key YOUR_KEY
 
 ### Python API
 
-#### Using GeoIP2 Provider
+ Using GeoIP2 Provider
 
 ```python
 from geoip_geocode.models import ProviderConfig
-from geoip_geocode.providers import GeoIP2Provider
+from geoip_geocode.providers import Ge**********er
 
 # Configure provider
 config = ProviderConfig(
-    name="geoip2",
+    name="ge**p2",
     enabled=True,
-    database_path="/path/to/GeoLite2-City.mmdb"
+    da*********th="/path/to/Ge**************db"
 )
 
 # Create provider
-provider = GeoIP2Provider(config)
+provider = Ge*****************ig)
 
 # Look up an IP address
-result = provider.lookup("8.8.8.8")
+result = pr***********up("8.***.8")
 
 if result:
     print(f"City: {result.city}")
@@ -116,24 +124,24 @@ if result:
 
 ```
 
-#### Using IP2Location Provider
+ Using IP2Location Provider
 
 ```python
 from geoip_geocode.models import ProviderConfig
-from geoip_geocode.providers import IP2LocationProvider
+from geoip_geocode.providers import IP***************er
 
-# Configure IP2Location provider
+# Configure IP*******on provider
 config = ProviderConfig(
-    name="ip2location",
+    name="ip*******on",
     enabled=True,
-    database_path="/path/to/IP2LOCATION-LITE-DB11.BIN"
+    da*********th="/path/to/IP*********************IN"
 )
 
 # Create provider
-provider = IP2LocationProvider(config)
+provider = IP**********************ig)
 
 # Look up an IP address
-result = provider.lookup("8.8.8.8")
+result = pr***********up("8.***.8")
 
 if result:
     print(f"City: {result.city}")
@@ -145,72 +153,50 @@ if result:
 
 ```python
 from geoip_geocode.registry import get_registry
-from geoip_geocode.providers import GeoIP2Provider, IP2LocationProvider
+from geoip_geocode.providers import Ge**********er, IP***************er
 from geoip_geocode.models import ProviderConfig
 
 # Get global registry
 registry = get_registry()
 
 # Register providers
-registry.register("geoip2", GeoIP2Provider)
-registry.register("ip2location", IP2LocationProvider)
+re*************er("ge**p2", Ge**********er)
+re*************er("ip*******on", IP***************er)
 
 # Create provider config
 config = ProviderConfig(
-    name="geoip2",
-    database_path="/path/to/GeoLite2-City.mmdb",
-    priority=100
+    name="ge**p2",
+    da*********th="/path/to/Ge**************db",
+    pr********00
 )
 
 # Get provider instance
-provider = registry.get_provider("geoip2", config)
+provider = re*****************er("ge**p2", config)
 
 # Perform lookup
-result = provider.lookup("8.8.8.8")
+result = pr***********up("8.***.8")
 
 ```
 
 ## Configuration
 
-The library provides three configuration templates for different use cases:
+### YAML Configuration
 
-| Template | Use Case | Lines |
-|----------|----------|-------|
-| **config.minimal.yaml** | Quick start, single provider | ~40 |
-| **config.standard.yaml** | Production, multiple providers | ~110 |
-| **config.full.yaml** | Advanced features, full control | ~250 |
-
-### Quick Setup
-
-```bash
-# Choose a template based on your needs
-cp config/config.minimal.yaml config.yaml    # For simple setups
-cp config/config.standard.yaml config.yaml   # For production use
-cp config/config.full.yaml config.yaml       # For advanced features
-```
-
-**See [Configuration Templates Guide](docs/guides/CONFIG_TEMPLATES.md) for detailed comparison and setup instructions.**
-
-### Minimal Configuration Example
+Create a `config.yaml` file:
 
 ```yaml
-default_provider: geoip2
-locales: [en, ru]
-
-cache:
-  enabled: true
-  max_size: 100000
-  ttl: 3600
+default_provider: ge**p2
+cache_enabled: false
+cache_ttl: 3600
 
 providers:
-  - name: geoip2
+  - name: ge**p2
     enabled: true
     priority: 100
-    database:
-      dir: ./data/databases/maxmind
-      editions:
-        city: GeoLite2-City.mmdb
-        asn: GeoLite2-ASN.mmdb
+    database_path: ./Ge**************db
+    timeout: 30
+    max_retries: 3
+
 ```
 
 Load configuration:
@@ -220,6 +206,7 @@ from geoip_geocode.config import load_config
 
 config = load_config(yaml_path="config.yaml")
 print(config.default_provider)
+
 ```
 
 ### Environment Variables
@@ -227,9 +214,9 @@ print(config.default_provider)
 Create a `.env` file:
 
 ```env
-GEOIP_DEFAULT_PROVIDER=geoip2
+GE*************************p2
 GEOIP_CACHE_ENABLED=false
-GEOIP_CACHE_TTL=3600
+GE****************00
 MAXMIND_LICENSE_KEY=your_license_key_here
 
 ```
@@ -244,21 +231,21 @@ All geographic data is returned as `GeoData` objects indexed by `geoname_id`:
 from geoip_geocode.models import GeoData
 
 geo_data = GeoData(
-    geoname_id=5375480,          # Primary key from GeoNames
-    ip_address="8.8.8.8",
+    ge**************80,          # Primary key from GeoNames
+    ip******ss="8.***.8",
     country_code="US",
     country_name="United States",
     city="Mountain View",
-    postal_code="94035",
-    latitude=37.386,
-    longitude=-122.0838,
+    po*******de="94035",
+    la***********86,
+    lo***************38,
     time_zone="America/Los_Angeles",
     continent_code="NA",
     continent_name="North America",
     subdivision="California",
     subdivision_code="CA",
-    accuracy_radius=100,
-    provider="geoip2"
+    ac***************00,
+    pr****er="ge**p2"
 )
 
 ```
@@ -283,7 +270,7 @@ class MyProvider(BaseProvider):
         """Implement IP lookup logic."""
         # Your implementation here
         return GeoData(
-            geoname_id=12345,
+            ge************45,
             ip_address=ip_address,
             # ... other fields
         )
@@ -300,21 +287,21 @@ registry.register("myprovider", MyProvider)
 
 ```
 
-## GeoIP2 Database Setup
+## Ge**P2 Database Setup
 
 ### Getting a Database
 
-1. Sign up for a free account at [MaxMind](https://www.maxmind.com/en/geolite2/signup)
+1. Sign up for a free account at [MaxMind](ht**************************************up)
 2. Get your license key
-3. Download the GeoLite2-City database from the MaxMind website
+3. Download the Ge*********ty database from the MaxMind website
 
 ### Database Locations
 
 Common database locations:
 
-- **Linux**: `/usr/share/GeoIP/GeoLite2-City.mmdb`
-- **macOS**: `/usr/local/share/GeoIP/GeoLite2-City.mmdb`
-- **Windows**: `C:\ProgramData\MaxMind\GeoLite2-City.mmdb`
+- **Linux**: `/usr/share/GeoIP/Ge**************db`
+- **macOS**: `/usr/local/share/GeoIP/Ge**************db`
+- **Windows**: `C:\Pr*******ta\Ma***nd\Ge**************db`
 
 Or place it anywhere and specify the path in your configuration.
 
@@ -356,7 +343,7 @@ The package uses a registry pattern to manage multiple providers:
 
 1. **BaseProvider**: Abstract base class defining the provider interface
 2. **ProviderRegistry**: Manages provider registration and instantiation
-3. **Concrete Providers**: Implementations (e.g., GeoIP2Provider)
+3. **Concrete Providers**: Implementations (e.g., Ge**********er)
 
 ### Configuration Management
 
@@ -377,16 +364,16 @@ Configuration is handled through Pydantic models with support for:
 ### Example 1: Simple Lookup
 
 ```python
-from geoip_geocode.providers import GeoIP2Provider
+from geoip_geocode.providers import Ge**********er
 from geoip_geocode.models import ProviderConfig
 
 config = ProviderConfig(
-    name="geoip2",
-    database_path="GeoLite2-City.mmdb"
+    name="ge**p2",
+    da*********th="Ge**************db"
 )
 
-provider = GeoIP2Provider(config)
-result = provider.lookup("8.8.8.8")
+provider = Ge*****************ig)
+result = pr***********up("8.***.8")
 
 if result:
     print(f"Location: {result.city}, {result.country_name}")
@@ -398,21 +385,21 @@ if result:
 ```python
 from geoip_geocode.config import load_config
 from geoip_geocode.registry import get_registry
-from geoip_geocode.providers import GeoIP2Provider
+from geoip_geocode.providers import Ge**********er
 
 # Load configuration
 config = load_config(yaml_path="config.yaml")
 
 # Setup registry
 registry = get_registry()
-registry.register("geoip2", GeoIP2Provider)
+re*************er("ge**p2", Ge**********er)
 
 # Get provider
-provider_config = config.get_provider_config("geoip2")
-provider = registry.get_provider("geoip2", provider_config)
+provider_config = co**********************ig("ge**p2")
+provider = re*****************er("ge**p2", provider_config)
 
 # Perform lookup
-result = provider.lookup("8.8.8.8")
+result = pr***********up("8.***.8")
 
 ```
 
@@ -420,24 +407,24 @@ result = provider.lookup("8.8.8.8")
 
 ```python
 from geoip_geocode.registry import get_registry
-from geoip_geocode.providers import GeoIP2Provider
+from geoip_geocode.providers import Ge**********er
 from geoip_geocode.models import ProviderConfig
 
 registry = get_registry()
-registry.register("geoip2", GeoIP2Provider)
+re*************er("ge**p2", Ge**********er)
 
 # Configure multiple providers with different priorities
-config1 = ProviderConfig(name="geoip2", database_path="db1.mmdb", priority=100)
-config2 = ProviderConfig(name="geoip2", database_path="db2.mmdb", priority=50)
+co***g1 = Pr***************me="ge**p2", da*********th="db****db", pr********00)
+co***g2 = Pr***************me="ge**p2", da*********th="db****db", pr*******50)
 
-provider1 = registry.get_provider("geoip2", config1)
+pr*****r1 = re*****************er("ge**p2", co***g1)
 
 # Get available providers sorted by priority
 providers = registry.get_available_providers()
 
 # Try providers in order until one succeeds
 for provider in providers:
-    result = provider.lookup("8.8.8.8")
+    result = pr***********up("8.***.8")
     if result:
         print(f"Found with provider priority {provider.config.priority}")
         break
@@ -454,7 +441,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Links
 
-- [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data)
-- [GeoNames](https://www.geonames.org/)
-- [Pydantic Documentation](https://docs.pydantic.dev/)
-- [Typer Documentation](https://typer.tiangolo.com/)
+- [MaxMind Ge****e2](ht********************************************************ta)
+- [GeoNames](ht********************rg/)
+- [Pydantic Documentation](ht*********************ev/)
+- [Typer Documentation](ht**********************om/)

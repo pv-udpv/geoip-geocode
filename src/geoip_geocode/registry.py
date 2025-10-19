@@ -6,6 +6,7 @@ system that manages multiple providers.
 """
 
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Dict, List, Optional, Type
 
 from geoip_geocode.models import GeoData, ProviderConfig
@@ -15,8 +16,8 @@ class BaseProvider(ABC):
     """
     Abstract base class for geocoding/IP lookup providers.
 
-    All providers must implement the lookup method. This ensures a consistent
-    interface across different provider implementations.
+    All providers must implement the lookup method and optionally override
+    other methods for resource management and availability checks.
 
     Attributes:
         config: Provider configuration
@@ -26,6 +27,9 @@ class BaseProvider(ABC):
         ...     def lookup(self, ip_address: str) -> Optional[GeoData]:
         ...         # Implementation here
         ...         pass
+        ...
+        ...     def is_available(self) -> bool:
+        ...         return super().is_available() and self._check_resources()
     """
 
     def __init__(self, config: ProviderConfig):
@@ -57,10 +61,76 @@ class BaseProvider(ABC):
         """
         Check if the provider is available and ready to use.
 
+        Base implementation checks if the provider is enabled.
+        Subclasses should override to add additional checks.
+
         Returns:
             True if provider is available, False otherwise
         """
         return self.config.enabled
+
+    def close(self) -> None:
+        """
+        Close any open resources (database connections, file handles, etc.).
+
+        Base implementation does nothing. Subclasses should override
+        if they need to perform cleanup.
+        """
+        pass
+
+    def update(self) -> bool:
+        """
+        Update provider databases from remote sources.
+
+        Base implementation does nothing and returns False.
+        Subclasses should override to implement database update logic.
+
+        Returns:
+            True if update was successful, False otherwise
+
+        Examples:
+            >>> provider.update()  # Download latest databases
+            True
+        """
+        return False
+
+    def validate_database_path(self, path: Optional[str]) -> Optional[Path]:
+        """
+        Validate and return a Path object for a database file.
+
+        Args:
+            path: String path to database file
+
+        Returns:
+            Path object if valid, None if path is None
+
+        Raises:
+            FileNotFoundError: If database file doesn't exist
+            ValueError: If path is provided but empty
+        """
+        if path is None:
+            return None
+
+        if not path.strip():
+            raise ValueError("Database path cannot be empty")
+
+        db_path = Path(path)
+        if not db_path.exists():
+            raise FileNotFoundError(f"Database file not found: {path}")
+
+        return db_path
+
+    def __enter__(self):
+        """Support for context manager protocol."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Support for context manager protocol."""
+        self.close()
+
+    def __del__(self):
+        """Cleanup when provider is destroyed."""
+        self.close()
 
 
 class ProviderRegistry:

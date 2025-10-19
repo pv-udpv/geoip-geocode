@@ -313,6 +313,5 @@ class CacheFactory:
             return LRUCacheBackend(config)
         else:
             raise ValueError(
-                f"Unsupported cache backend: {backend}. "
-                f"Supported backends: 'lru'"
+                f"Unsupported cache backend: {backend}. " f"Supported backends: 'lru'"
             )

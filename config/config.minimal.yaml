@@ -1,0 +1,40 @@
+# Minimal Configuration for geoip-geocode
+# Quick start configuration with essential settings only
+# For more options, see config.standard.yaml or config.full.yaml
+
+default_provider: geoip2
+
+# Locales for country/city names (first is preferred, then fallback)
+locales:
+  - en
+  - ru
+
+# Cache configuration for better performance
+cache:
+  enabled: true
+  backend: lru
+  max_size: 100000
+  ttl: 3600  # 1 hour in seconds
+
+# Single provider configuration (GeoIP2/MaxMind)
+providers:
+  - name: geoip2
+    enabled: true
+    priority: 100
+    database:
+      dir: ./data/databases/maxmind
+      editions:
+        city: GeoLite2-City.mmdb
+        asn: GeoLite2-ASN.mmdb
+    timeout: 30
+    max_retries: 3
+
+# To enable automatic database updates:
+# 1. Get a free MaxMind account: https://www.maxmind.com/en/geolite2/signup
+# 2. Set environment variables in .env:
+#    MAXMIND_ACCOUNT_ID=your_account_id
+#    MAXMIND_LICENSE_KEY=your_license_key
+# 3. Add to provider config above:
+#    auto_update:
+#      enabled: true
+#      schedule: "0 3 * * 2"  # 3 AM every Tuesday

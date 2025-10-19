@@ -14,7 +14,11 @@ from rich.table import Table
 
 from geoip_geocode.config import AppConfig, load_config
 from geoip_geocode.models import ProviderConfig
-from geoip_geocode.providers import GeoIP2Provider
+from geoip_geocode.providers import (
+    GeoIP2Provider,
+    IP2LocationProvider,
+    MultiDatabaseGeoIP2Provider,
+)
 from geoip_geocode.registry import get_registry
 
 app = typer.Typer(
@@ -78,6 +82,8 @@ def lookup(
         # Initialize registry and provider
         registry = get_registry()
         registry.register("geoip2", GeoIP2Provider)
+        registry.register("ip2location", IP2LocationProvider)
+        registry.register("geoip2-multi", MultiDatabaseGeoIP2Provider)
 
         geo_provider = registry.get_provider(provider_name, provider_config)
 
@@ -211,6 +217,8 @@ def list_providers(
         # Initialize registry
         registry = get_registry()
         registry.register("geoip2", GeoIP2Provider)
+        registry.register("ip2location", IP2LocationProvider)
+        registry.register("geoip2-multi", MultiDatabaseGeoIP2Provider)
 
         # Create table
         table = Table(title="Available Providers")
@@ -254,10 +262,17 @@ def list_providers(
         raise typer.Exit(1)
 
 
-@app.command()
+# Configuration management commands
+config_app = typer.Typer(help="Configuration management commands")
+app.add_typer(config_app, name="config")
+
+@config_app.command("init")
 def config_init(
     output: str = typer.Option(
         "config.yaml", "--output", "-o", help="Output configuration file path"
+    ),
+    template: str = typer.Option(
+        "standard", "--template", "-t", help="Template: minimal, standard, or full"
     ),
     database_path: Optional[str] = typer.Option(
         None, "--database", "-d", help="Path to GeoIP2 database"
@@ -267,33 +282,254 @@ def config_init(
     Initialize a configuration file with default settings.
 
     Examples:
-        geoip-geocode config-init
+        geoip-geocode config init
 
-        geoip-geocode config-init --database /path/to/GeoLite2-City.mmdb
+        geoip-geocode config init --template full
+
+        geoip-geocode config init --database /path/to/GeoLite2-City.mmdb
     """
     try:
-        # Create default configuration
-        config = AppConfig(
-            default_provider="geoip2",
-            cache_enabled=False,
-            cache_ttl=3600,
-        )
+        from geoip_geocode.config import create_default_config
 
-        # Add GeoIP2 provider config
-        geoip2_config = ProviderConfig(
-            name="geoip2",
-            enabled=True,
-            priority=100,
-            database_path=database_path or "./GeoLite2-City.mmdb",
-        )
-        config.add_provider_config(geoip2_config)
+        # Create default configuration
+        config = create_default_config()
+
+        # Override database path if provided
+        if database_path:
+            for provider in config.providers:
+                if provider.name == "geoip2":
+                    provider.database_path = database_path
 
         # Save to file
         config.to_yaml(output)
 
         rprint(f"[green]✓ Configuration file created: {output}[/green]")
-        rprint("[cyan]Edit the file to customize settings[/cyan]")
+        rprint(f"[cyan]Template: {template}[/cyan]")
+        rprint("[yellow]Edit the file to customize settings[/yellow]")
 
+    except Exception as e:
+        rprint(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+@config_app.command("validate")
+def config_validate(
+    config_file: str = typer.Option(
+        "config.yaml", "--config", "-c", help="Path to configuration file"
+    ),
+) -> None:
+    """
+    Validate a configuration file.
+
+    Examples:
+        geoip-geocode config validate
+
+        geoip-geocode config validate --config config/config.yaml
+    """
+    try:
+        config = load_config(yaml_path=config_file)
+        results = config.validate_config()
+
+        if results["valid"]:
+            rprint("[green]✓ Configuration is valid[/green]")
+        else:
+            rprint("[red]✗ Configuration has issues[/red]")
+
+        # Show statistics
+        table = Table(title="Configuration Summary")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+
+        table.add_row("Enabled Providers", str(results["enabled_providers"]))
+        table.add_row("Total Providers", str(results["total_providers"]))
+        table.add_row("Matching Rules", str(results["matching_rules"]))
+
+        console.print(table)
+
+        # Show issues
+        if results["issues"]:
+            rprint("\n[red bold]Issues:[/red bold]")
+            for issue in results["issues"]:
+                rprint(f"[red]  ✗ {issue}[/red]")
+
+        # Show warnings
+        if results["warnings"]:
+            rprint("\n[yellow bold]Warnings:[/yellow bold]")
+            for warning in results["warnings"]:
+                rprint(f"[yellow]  ⚠ {warning}[/yellow]")
+
+        if not results["valid"]:
+            raise typer.Exit(1)
+
+    except FileNotFoundError:
+        rprint(f"[red]Error: Configuration file not found: {config_file}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        rprint(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+@config_app.command("show")
+def config_show(
+    config_file: str = typer.Option(
+        "config.yaml", "--config", "-c", help="Path to configuration file"
+    ),
+    section: Optional[str] = typer.Option(
+        None, "--section", "-s", help="Show specific section (providers, cache, rules)"
+    ),
+) -> None:
+    """
+    Display current configuration.
+
+    Examples:
+        geoip-geocode config show
+
+        geoip-geocode config show --section providers
+
+        geoip-geocode config show --section cache
+    """
+    try:
+        config = load_config(yaml_path=config_file)
+
+        if section == "providers":
+            # Show providers table
+            table = Table(title="Providers Configuration")
+            table.add_column("Name", style="cyan")
+            table.add_column("Enabled", style="green")
+            table.add_column("Priority", style="yellow")
+            table.add_column("Database", style="white")
+
+            for provider in config.providers:
+                enabled = "✓" if provider.enabled else "✗"
+                db_path = provider.database_path or "-"
+                table.add_row(
+                    provider.name,
+                    enabled,
+                    str(provider.priority),
+                    db_path[:50] + "..." if len(db_path) > 50 else db_path,
+                )
+
+            console.print(table)
+
+        elif section == "cache":
+            # Show cache config
+            table = Table(title="Cache Configuration")
+            table.add_column("Setting", style="cyan")
+            table.add_column("Value", style="green")
+
+            table.add_row("Enabled", "✓" if config.cache.enabled else "✗")
+            table.add_row("Backend", config.cache.backend)
+            table.add_row("Max Size", str(config.cache.max_size))
+            table.add_row("TTL", f"{config.cache.ttl}s")
+
+            console.print(table)
+
+        elif section == "rules":
+            # Show matching rules
+            table = Table(title="Matching Rules")
+            table.add_column("Name", style="cyan")
+            table.add_column("Enabled", style="green")
+            table.add_column("Priority", style="yellow")
+            table.add_column("Provider", style="white")
+
+            for rule in config.matching_rules:
+                enabled = "✓" if rule.enabled else "✗"
+                table.add_row(
+                    rule.name,
+                    enabled,
+                    str(rule.priority),
+                    rule.provider,
+                )
+
+            console.print(table)
+
+        else:
+            # Show overview
+            rprint(f"[cyan bold]Configuration Overview[/cyan bold]")
+            rprint(f"Default Provider: [green]{config.default_provider}[/green]")
+            rprint(f"Locales: [green]{', '.join(config.locales)}[/green]")
+            rprint(f"Cache: [green]{'Enabled' if config.cache.enabled else 'Disabled'}[/green]")
+            rprint(f"Providers: [green]{len(config.providers)}[/green]")
+            rprint(f"Matching Rules: [green]{len(config.matching_rules)}[/green]")
+
+            if config.logging:
+                rprint(f"Logging: [green]{config.logging.level}[/green]")
+
+    except FileNotFoundError:
+        rprint(f"[red]Error: Configuration file not found: {config_file}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        rprint(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+@config_app.command("check")
+def config_check(
+    config_file: str = typer.Option(
+        "config.yaml", "--config", "-c", help="Path to configuration file"
+    ),
+) -> None:
+    """
+    Check provider availability and database files.
+
+    Examples:
+        geoip-geocode config check
+
+        geoip-geocode config check --config config/config.yaml
+    """
+    try:
+        config = load_config(yaml_path=config_file)
+
+        # Initialize registry
+        registry = get_registry()
+        registry.register("geoip2", GeoIP2Provider)
+        registry.register("ip2location", IP2LocationProvider)
+        registry.register("geoip2-multi", MultiDatabaseGeoIP2Provider)
+
+        # Check each provider
+        table = Table(title="Provider Status Check")
+        table.add_column("Provider", style="cyan")
+        table.add_column("Enabled", style="green")
+        table.add_column("Available", style="yellow")
+        table.add_column("Details", style="white")
+
+        for provider_config in config.providers:
+            enabled = "✓" if provider_config.enabled else "✗"
+            
+            if provider_config.enabled:
+                try:
+                    provider = registry.get_provider(
+                        provider_config.name, provider_config
+                    )
+                    if provider and provider.is_available():
+                        available = "✓"
+                        details = "Ready"
+                    else:
+                        available = "✗"
+                        details = "Not available"
+                except Exception as e:
+                    available = "✗"
+                    details = str(e)[:50]
+            else:
+                available = "-"
+                details = "Disabled"
+
+            table.add_row(
+                provider_config.name,
+                enabled,
+                available,
+                details,
+            )
+
+        console.print(table)
+
+        # Validate config
+        results = config.validate_config()
+        if results["issues"]:
+            rprint("\n[red bold]Configuration Issues:[/red bold]")
+            for issue in results["issues"]:
+                rprint(f"[red]  ✗ {issue}[/red]")
+
+    except FileNotFoundError:
+        rprint(f"[red]Error: Configuration file not found: {config_file}[/red]")
+        raise typer.Exit(1)
     except Exception as e:
         rprint(f"[red]Error: {e}[/red]")
         raise typer.Exit(1)

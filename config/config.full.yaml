@@ -1,0 +1,448 @@
+# yaml-language-server: $schema=./config.schema.json
+#
+# Example YAML configuration for geoip-geocode
+# Copy to config.yaml and customize for your environment
+#
+# ⚠️  WARNING: Never commit actual API keys or credentials to version control
+#    Use environment variables or .env file (excluded from git)
+#
+# Configuration Version: 1.0
+# For more information, visit: https://github.com/pv-udpv/geoip-geocode
+#
+
+# ============================================================================
+# GLOBAL SETTINGS
+# ============================================================================
+
+# Default provider to use when none is specified
+# Must match one of the provider names defined below
+default_provider: geoip2
+
+# Default locales for localized data (country names, city names, etc.)
+# First locale in the list is preferred, fallback to next if not available
+# Supported locales: en, ru, de, es, fr, ja, pt-BR, zh-CN, and others
+locales:
+  - en  # English (recommended as primary for maximum compatibility)
+  - ru  # Russian
+  # - de  # German
+  # - es  # Spanish
+  # - fr  # French
+  # - ja  # Japanese
+  # - pt-BR  # Brazilian Portuguese
+  # - zh-CN  # Simplified Chinese
+
+# ============================================================================
+# CACHE CONFIGURATION
+# ============================================================================
+
+# Cache settings for improved performance on repeated lookups
+# Enabling cache is recommended for production environments
+cache:
+  enabled: true   # Set to false to disable caching
+  backend: lru    # Options: 'lru' (Least Recently Used) or 'memory'
+  max_size: 100000  # Range: 1-1000000 (number of cached IP lookups)
+  ttl: 3600       # Range: 60-86400 (cache time-to-live in seconds, 1 hour default)
+
+# ============================================================================
+# MATCHING RULES
+# ============================================================================
+
+# Provider selection rules based on IP characteristics
+# Rules are evaluated in priority order (lower number = higher priority)
+# First matching rule determines which provider to use
+matching_rules:
+  # Rule 1: Private/Local IP addresses
+  - name: private_networks
+    description: "Private and local IP addresses"
+    enabled: true
+    priority: 10
+    match_all: false  # OR logic: match any condition
+    conditions:
+      - type: ip_range
+        values:
+          - "10.0.0.0/8"        # Private Class A
+          - "172.16.0.0/12"     # Private Class B
+          - "192.168.0.0/16"    # Private Class C
+          - "127.0.0.0/8"       # Loopback
+    provider: geoip2
+  
+  # Rule 2: IPv6 addresses
+  - name: ipv6_traffic
+    description: "IPv6 addresses"
+    enabled: true
+    priority: 20
+    conditions:
+      - type: ip_version
+        values:
+          - "6"
+    provider: geoip2
+  
+  # Rule 3: Asian countries (better IP2Location coverage)
+  - name: asian_countries
+    description: "Countries with better IP2Location coverage"
+    enabled: false  # Disabled by default, enable if using IP2Location
+    priority: 30
+    conditions:
+      - type: country
+        values:
+          - CN
+          - JP
+          - KR
+          - IN
+          - ID
+          - TH
+          - VN
+          - PH
+          - MY
+          - SG
+    provider: ip2location
+    fallback_provider: geoip2
+  
+  # Rule 4: European continent
+  - name: european_traffic
+    description: "European countries"
+    enabled: false
+    priority: 40
+    conditions:
+      - type: continent
+        values:
+          - EU
+    provider: geoip2
+  
+  # Rule 5: Specific ASN ranges
+  # - name: cdn_traffic
+  #   description: "CDN traffic (Cloudflare, AWS, etc.)"
+  #   enabled: false
+  #   priority: 50
+  #   conditions:
+  #     - type: asn
+  #       values:
+  #         - "13335"  # Cloudflare
+  #         - "16509"  # AWS
+  #         - "15169"  # Google
+  #   provider: geoip2-enriched
+  
+  # Rule 6: Custom regex pattern
+  # - name: custom_pattern
+  #   description: "Custom IP pattern matching"
+  #   enabled: false
+  #   priority: 60
+  #   conditions:
+  #     - type: regex
+  #       values:
+  #         - "^8\\.8\\..*"  # Google DNS
+  #   provider: geoip2
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+# Logging configuration (optional)
+# logging:
+#   level: INFO     # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+#   format: json    # Options: 'json' or 'text'
+#   file: ./logs/geoip-geocode.log  # Optional log file path
+
+# ============================================================================
+# PROVIDER CONFIGURATIONS
+# ============================================================================
+
+# Priority System:
+#   - Providers with LOWER priority numbers are tried FIRST (1=highest, 999=lowest)
+#   - If a provider fails, the next highest priority provider is used
+#   - Set enabled: false to disable a provider completely
+#   - Example: priority 50 > priority 100 > priority 200
+
+providers:
+  # --------------------------------------------------------------------------
+  # MaxMind GeoIP2 Provider (Recommended)
+  # --------------------------------------------------------------------------
+  - name: geoip2
+    enabled: true
+    priority: 100  # Lower = higher priority (1=highest, 999=lowest)
+    description: "MaxMind GeoIP2 / GeoLite2 database provider"
+    
+    # Provider-specific locale override (optional)
+    # If not specified, global locales will be used
+    locales:
+      - en
+      - ru
+    
+    # Database configuration
+    database:
+      dir: ./data/databases/maxmind  # Directory containing .mmdb files
+      
+      # Database editions mapping
+      # Specify which database files to use for each data type
+      editions:
+        city: GeoLite2-City.mmdb       # City-level geolocation
+        asn: GeoLite2-ASN.mmdb         # Autonomous System Number
+        country: GeoLite2-Country.mmdb # Country-level geolocation
+    
+    # Connection settings
+    timeout: 30       # Range: 1-300 (timeout in seconds for database operations)
+    max_retries: 3    # Range: 0-10 (maximum number of retry attempts on failure)
+    
+    # Database auto-update settings (optional)
+    # Requires MaxMind account (https://www.maxmind.com/en/geolite2/signup)
+    # ⚠️  Configure via environment variables (see .env.example):
+    #   - MAXMIND_ACCOUNT_ID
+    #   - MAXMIND_LICENSE_KEY
+    #   - MAXMIND_ACCOUNT_NAME
+    #   - MAXMIND_EDITION_ID
+    auto_update:
+      enabled: false  # Set to true to enable automatic updates
+      schedule: "0 3 * * 2"  # Cron expression (default: 3 AM every Tuesday)
+      # update_url: https://download.maxmind.com/app/geoip_download  # Override default URL
+
+  # --------------------------------------------------------------------------
+  # IP2Location Provider
+  # --------------------------------------------------------------------------
+  - name: ip2location
+    enabled: true
+    priority: 200  # Lower priority than geoip2
+    description: "IP2Location database provider"
+    
+    locales:
+      - en
+      - ru
+    
+    # Database configuration
+    database:
+      dir: ./data/databases/ip2location  # Directory containing .BIN files
+      compressed: zip  # Options: 'zip', 'gz', or false for uncompressed
+      extension: BIN   # File extension (BIN for IP2Location)
+      tier: LITE       # Options: LITE, DB1-DB24, DBASN, etc.
+    
+    # IP2Location database variants
+    # Map data types to specific database products
+    variants:
+      country:
+        - DB1  # IP-COUNTRY
+      city:
+        - DB3  # IP-COUNTRY-REGION-CITY
+        - DB11 # IP-COUNTRY-REGION-CITY-LATITUDE-LONGITUDE-ZIPCODE-TIMEZONE
+      asn:
+        - DBASN  # IP-ASN
+    
+    # Data types to export from this provider
+    export:
+      - country
+      - city
+      - asn
+    
+    # Connection settings
+    timeout: 30       # Range: 1-300 (timeout in seconds)
+    max_retries: 3    # Range: 0-10 (maximum retry attempts)
+    
+    # Auto-update configuration (optional)
+    # ⚠️  Configure via environment variables (see .env.example):
+    #   - IP2LOCATION_TOKEN
+    #   - IP2LOCATION_PRODUCT_CODE
+    # auto_update:
+    #   enabled: false
+
+  # --------------------------------------------------------------------------
+  # Multi-Database Provider (Advanced)
+  # --------------------------------------------------------------------------
+  # Combines multiple database types for enriched data
+  - name: geoip2-full
+    enabled: false  # Disabled by default, enable if needed
+    priority: 50   # Higher priority for enriched data
+    description: "Multi-database provider with combined city and ASN data"
+    locales:
+      - en
+      - ru
+    
+    # Multiple databases to use simultaneously
+    databases:
+      - city  # Geographic information
+      - asn   # Autonomous System infoБазовое сопоставление IP
+
+
+
+    timeout: 30       # Range: 1-300
+    max_retries: 3    # Range: 0-10
+
+  # --------------------------------------------------------------------------
+  # Example: HTTP API Provider Template
+  # --------------------------------------------------------------------------
+  # Uncomment and customize for API-based providers
+  # ⚠️  Configure API keys via environment variables (see .env.example)
+  # - name: ipapi
+  #   enabled: false
+  #   priority: 300
+  #   description: "IP-API.com HTTP API provider"
+  #   
+  #   # API configuration
+  #   api:
+  #     base_url: https://ip-api.com/json
+  #     timeout: 10       # Range: 1-60
+  #     max_retries: 3    # Range: 0-10
+  #     rate_limit: 45    # Requests per minute (free tier limit)
+  #   
+  #   # Response field mapping
+  #   field_mapping:
+  #     country_code: countryCode
+  #     country_name: country
+  #     city: city
+  #     latitude: lat
+  #     longitude: lon
+
+  # --------------------------------------------------------------------------
+  # Example: IPInfo.io Provider Template
+  # --------------------------------------------------------------------------
+  # - name: ipinfo
+  #   enabled: false
+  #   priority: 300
+  #   description: "IPInfo.io API provider"
+  #   
+  #   api:
+  #     base_url: https://ipinfo.io
+  #     timeout: 10
+  #     max_retries: 3
+
+# ============================================================================
+# PERFORMANCE TUNING (Advanced)
+# ============================================================================
+
+# performance:
+#   # Enable connection pooling for database providers
+#   connection_pool:
+#     enabled: true
+#     max_connections: 10   # Range: 1-100
+#     min_connections: 2    # Range: 1-10
+#   
+#   # Parallel lookup settings
+#   parallel_lookups:
+#     enabled: false
+#     max_workers: 4  # Range: 1-16 (number of concurrent workers)
+#   
+#   # Memory optimization
+#   memory:
+#     max_database_size: 512  # Range: 64-4096 (maximum database size to keep in memory, MB)
+
+# ============================================================================
+# ERROR HANDLING
+# ============================================================================
+
+# error_handling:
+#   # Retry policy for failed lookups
+#   retry_policy:
+#     max_attempts: 3       # Range: 1-10
+#     backoff_factor: 1.5   # Range: 1.0-5.0 (exponential backoff multiplier)
+#     retry_on:
+#       - timeout
+#       - connection_error  # Error types to retry
+#   
+#   # Fallback behavior when primary provider fails
+#   fallback:
+#     enabled: true
+#     use_next_priority: true  # Automatically try next provider in priority order
+#   
+#   # Error notifications (optional)
+#   # notifications:
+#   #   email: admin@example.com
+#   #   webhook: https://example.com/webhook
+
+# ============================================================================
+# OUTPUT CONFIGURATION
+# ============================================================================
+
+# output:
+#   # Default output format
+#   format: json  # Options: 'json', 'yaml', 'csv', or 'text'
+#   
+#   # Pretty print JSON output
+#   pretty_print: true
+#   
+#   # Include additional metadata in responses
+#   include_metadata: false
+#   
+#   # Field filtering (only include specified fields)
+#   # fields:
+#   #   - country
+#   #   - subdivision
+#   #   - city
+#   #   - latitude
+#   #   - longitude
+
+# ============================================================================
+# SECURITY
+# ============================================================================
+
+# security:
+#   # Restrict lookups to specific IP ranges (CIDR notation)
+#   # allowed_ranges:
+#   #   - 10.0.0.0/8       # Private Class A
+#   #   - 172.16.0.0/12    # Private Class B
+#   #   - 192.168.0.0/16   # Private Class C
+#   
+#   # Block specific IP ranges
+#   # blocked_ranges:
+#   #   - 169.254.0.0/16  # Link-local addresses
+#   
+#   # API key for CLI/API access (optional)
+#   # ⚠️  Use GEOIP_API_KEY environment variable instead of hardcoding
+#   # api_key: ""
+
+# ============================================================================
+# NOTES
+# ============================================================================
+#
+# Environment Variables:
+#   ⚠️  All sensitive credentials and API keys MUST be configured via environment
+#   variables. See .env.example for the complete list of available variables.
+#   
+#   Provider Configuration:
+#   - GEOIP_DEFAULT_PROVIDER: Default provider to use
+#   - GEOIP_CACHE_ENABLED: Enable/disable caching (true/false)
+#   - GEOIP_CACHE_TTL: Cache time-to-live in seconds (60-86400)
+#   - GEOIP_LOOKUP_CHAIN: Comma-separated list of provider IDs
+#   
+#   MaxMind Configuration:
+#   - MAXMIND_ACCOUNT_ID: MaxMind account ID for database updates
+#   - MAXMIND_ACCOUNT_NAME: MaxMind account email
+#   - MAXMIND_LICENSE_KEY: MaxMind license key for database updates
+#   - MAXMIND_EDITION_ID: Database edition (GeoLite2-City, GeoLite2-Country, etc.)
+#   
+#   IP2Location Configuration:
+#   - IP2LOCATION_TOKEN: IP2Location download token
+#   - IP2LOCATION_PRODUCT_CODE: Product code (DB11LITE, DB11, etc.)
+#
+# Priority System:
+#   - Providers with LOWER priority numbers are tried FIRST
+#   - Priority 1 = Highest priority (tried first)
+#   - Priority 999 = Lowest priority (tried last)
+#   - If a provider fails, the next highest priority provider is used
+#   - Set enabled: false to disable a provider completely
+#   - Example priority order: 50 → 100 → 200 → 300
+#
+# Locale Fallback:
+#   - The first available locale in the list is used
+#   - If a locale is not available, the next one is tried
+#   - Always include 'en' as a fallback for maximum compatibility
+#   - Provider-specific locales override global locales
+#
+# Database Paths:
+#   - Relative paths are resolved from the config file location
+#   - Use absolute paths for system-wide installations
+#   - Ensure proper file permissions for database directories
+#   - Example: ./data/databases/maxmind or /var/lib/geoip/databases
+#
+# Configuration Validation:
+#   - Validate your configuration with: geoip-geocode config validate
+#   - Check provider status with: geoip-geocode config check
+#   - View effective configuration: geoip-geocode config show
+#
+# Best Practices:
+#   1. Enable caching for production environments
+#   2. Use environment variables for all sensitive data
+#   3. Keep 'en' locale as fallback
+#   4. Test configuration after changes
+#   5. Monitor database update schedules
+#   6. Set appropriate timeout values for your use case
+#   7. Configure proper logging for troubleshooting
+#
+# For more information, visit: https://github.com/pv-udpv/geoip-geocode
+#

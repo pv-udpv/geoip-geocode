@@ -6,13 +6,22 @@ and YAML files using Pydantic settings.
 """
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import yaml
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from geoip_geocode.models import ProviderConfig
+from geoip_geocode.matching import MatchingRule
+from geoip_geocode.models import (
+    CacheConfig,
+    ErrorHandlingConfig,
+    LoggingConfig,
+    OutputConfig,
+    PerformanceConfig,
+    ProviderConfig,
+    SecurityConfig,
+)
 
 
 class AppConfig(BaseSettings):
@@ -27,9 +36,15 @@ class AppConfig(BaseSettings):
     Attributes:
         config_file: Path to YAML configuration file
         default_provider: Default provider to use
-        cache_enabled: Whether to enable caching
-        cache_ttl: Cache time-to-live in seconds
+        locales: Default locales for localized data
+        cache: Cache configuration
+        matching_rules: Provider selection rules
+        logging: Logging configuration
         providers: List of provider configurations
+        performance: Performance tuning settings
+        error_handling: Error handling configuration
+        output: Output configuration
+        security: Security settings
 
     Examples:
         >>> config = AppConfig()
@@ -48,15 +63,71 @@ class AppConfig(BaseSettings):
         extra="ignore",
     )
 
+    # Basic settings
     config_file: Optional[str] = Field(
         None, description="Path to YAML configuration file"
     )
     default_provider: str = Field("geoip2", description="Default provider to use")
-    cache_enabled: bool = Field(False, description="Enable result caching")
-    cache_ttl: int = Field(3600, description="Cache TTL in seconds")
+    locales: List[str] = Field(
+        default_factory=lambda: ["en"],
+        description="Default locales for localized data (e.g., ['ru', 'en'])",
+    )
+
+    # Cache configuration
+    cache: CacheConfig = Field(
+        default_factory=CacheConfig,
+        description="Cache configuration",
+    )
+
+    # Legacy cache fields for backward compatibility
+    cache_enabled: Optional[bool] = Field(None, description="Enable result caching (legacy)")
+    cache_ttl: Optional[int] = Field(None, description="Cache TTL in seconds (legacy)")
+
+    # Matching rules
+    matching_rules: List[MatchingRule] = Field(
+        default_factory=list,
+        description="Provider selection rules",
+    )
+
+    # Logging configuration
+    logging: Optional[LoggingConfig] = Field(
+        None,
+        description="Logging configuration",
+    )
+
+    # Provider configurations
     providers: List[ProviderConfig] = Field(
         default_factory=list, description="Provider configurations"
     )
+
+    # Advanced configurations
+    performance: Optional[PerformanceConfig] = Field(
+        None,
+        description="Performance tuning settings",
+    )
+
+    error_handling: Optional[ErrorHandlingConfig] = Field(
+        None,
+        description="Error handling configuration",
+    )
+
+    output: Optional[OutputConfig] = Field(
+        None,
+        description="Output configuration",
+    )
+
+    security: Optional[SecurityConfig] = Field(
+        None,
+        description="Security settings",
+    )
+
+    def model_post_init(self, __context: Any) -> None:
+        """Post-initialization hook to handle legacy fields."""
+        # Merge legacy cache fields into cache config
+        if self.cache_enabled is not None:
+            self.cache.enabled = self.cache_enabled
+        if self.cache_ttl is not None:
+            self.cache.ttl = self.cache_ttl
 
     @classmethod
     def from_yaml(cls, yaml_path: str) -> "AppConfig":
@@ -87,7 +158,41 @@ class AppConfig(BaseSettings):
         if not data:
             data = {}
 
-        # Convert provider configs if present
+        # Convert cache config
+        if "cache" in data and isinstance(data["cache"], dict):
+            data["cache"] = CacheConfig(**data["cache"])
+
+        # Convert logging config
+        if "logging" in data and isinstance(data["logging"], dict):
+            data["logging"] = LoggingConfig(**data["logging"])
+
+        # Convert performance config
+        if "performance" in data and isinstance(data["performance"], dict):
+            data["performance"] = PerformanceConfig(**data["performance"])
+
+        # Convert error_handling config
+        if "error_handling" in data and isinstance(data["error_handling"], dict):
+            data["error_handling"] = ErrorHandlingConfig(**data["error_handling"])
+
+        # Convert output config
+        if "output" in data and isinstance(data["output"], dict):
+            data["output"] = OutputConfig(**data["output"])
+
+        # Convert security config
+        if "security" in data and isinstance(data["security"], dict):
+            data["security"] = SecurityConfig(**data["security"])
+
+        # Convert matching rules
+        if "matching_rules" in data:
+            rules = []
+            for rule_data in data["matching_rules"]:
+                if isinstance(rule_data, dict):
+                    rules.append(MatchingRule(**rule_data))
+                else:
+                    rules.append(rule_data)
+            data["matching_rules"] = rules
+
+        # Convert provider configs
         if "providers" in data:
             provider_configs = []
             for p in data["providers"]:
@@ -110,16 +215,15 @@ class AppConfig(BaseSettings):
             >>> config = AppConfig()
             >>> config.to_yaml("config.yaml")
         """
-        data = self.model_dump(exclude_none=True)
-
-        # Convert provider configs to dicts
-        if "providers" in data:
-            data["providers"] = [
-                p if isinstance(p, dict) else p.model_dump(exclude_none=True)
-                for p in data["providers"]
-            ]
+        data = self.model_dump(
+            exclude_none=True, 
+            exclude={"cache_enabled", "cache_ttl"},
+            mode="json"  # Use JSON mode to convert enums to values
+        )
 
         yaml_file = Path(yaml_path)
+        yaml_file.parent.mkdir(parents=True, exist_ok=True)
+        
         with open(yaml_file, "w") as f:
             yaml.safe_dump(data, f, default_flow_style=False, sort_keys=False)
 
@@ -159,6 +263,85 @@ class AppConfig(BaseSettings):
         # Add new config
         self.providers.append(provider_config)
 
+    def get_enabled_providers(self) -> List[ProviderConfig]:
+        """
+        Get all enabled providers sorted by priority.
+
+        Returns:
+            List of enabled provider configs, sorted by priority (lower = higher)
+
+        Examples:
+            >>> config = AppConfig()
+            >>> enabled = config.get_enabled_providers()
+        """
+        enabled = [p for p in self.providers if p.enabled]
+        return sorted(enabled, key=lambda p: p.priority)
+
+    def validate_config(self) -> Dict[str, Any]:
+        """
+        Validate the configuration and return validation results.
+
+        Returns:
+            Dictionary with validation results
+
+        Examples:
+            >>> config = AppConfig.from_yaml("config.yaml")
+            >>> results = config.validate_config()
+            >>> if results["valid"]:
+            ...     print("Configuration is valid")
+        """
+        issues = []
+        warnings = []
+
+        # Check if at least one provider is enabled
+        enabled_providers = self.get_enabled_providers()
+        if not enabled_providers:
+            issues.append("No enabled providers found")
+
+        # Check if default provider exists and is enabled
+        default_provider_config = self.get_provider_config(self.default_provider)
+        if not default_provider_config:
+            issues.append(f"Default provider '{self.default_provider}' not found in providers")
+        elif not default_provider_config.enabled:
+            warnings.append(f"Default provider '{self.default_provider}' is disabled")
+
+        # Check for duplicate provider priorities
+        priorities = [p.priority for p in enabled_providers]
+        if len(priorities) != len(set(priorities)):
+            warnings.append("Multiple providers have the same priority")
+
+        # Check matching rules
+        for rule in self.matching_rules:
+            if rule.enabled:
+                # Check if rule's provider exists
+                provider = self.get_provider_config(rule.provider)
+                if not provider:
+                    issues.append(f"Matching rule '{rule.name}' references unknown provider '{rule.provider}'")
+                elif not provider.enabled:
+                    warnings.append(f"Matching rule '{rule.name}' references disabled provider '{rule.provider}'")
+
+                # Check fallback provider
+                if rule.fallback_provider:
+                    fallback = self.get_provider_config(rule.fallback_provider)
+                    if not fallback:
+                        warnings.append(f"Matching rule '{rule.name}' references unknown fallback provider '{rule.fallback_provider}'")
+
+        # Check cache configuration
+        if self.cache.enabled:
+            if self.cache.max_size < 1:
+                issues.append("Cache max_size must be at least 1")
+            if self.cache.ttl < 60:
+                warnings.append("Cache TTL is very low (< 60 seconds)")
+
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "warnings": warnings,
+            "enabled_providers": len(enabled_providers),
+            "total_providers": len(self.providers),
+            "matching_rules": len([r for r in self.matching_rules if r.enabled]),
+        }
+
 
 def load_config(
     yaml_path: Optional[str] = None, env_file: Optional[str] = None
@@ -196,3 +379,39 @@ def load_config(
         return AppConfig(_env_file=env_file)
 
     return AppConfig()
+
+
+def create_default_config() -> AppConfig:
+    """
+    Create a default configuration with sensible defaults.
+
+    Returns:
+        AppConfig instance with default settings
+
+    Examples:
+        >>> config = create_default_config()
+        >>> config.to_yaml("config.yaml")
+    """
+    from geoip_geocode.matching import create_default_rules
+
+    return AppConfig(
+        default_provider="geoip2",
+        locales=["en"],
+        cache=CacheConfig(
+            enabled=True,
+            backend="lru",
+            max_size=100000,
+            ttl=3600,
+        ),
+        matching_rules=create_default_rules(),
+        providers=[
+            ProviderConfig(
+                name="geoip2",
+                enabled=True,
+                priority=100,
+                description="MaxMind GeoIP2 / GeoLite2 database provider",
+                timeout=30,
+                max_retries=3,
+            ),
+        ],
+    )

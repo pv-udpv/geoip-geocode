@@ -10,6 +10,7 @@ from geoip_geocode.cache import CacheBackend, CacheFactory, CacheStats
 from geoip_geocode.models import CacheConfig, EnrichedGeoData, ProviderConfig
 from geoip_geocode.registry import BaseProvider
 
+
 class MultiDatabaseGeoIP2Provider(BaseProvider):
     """
     GeoIP2 provider supporting multiple databases (City + ASN) with caching.
@@ -26,14 +27,14 @@ class MultiDatabaseGeoIP2Provider(BaseProvider):
 
     Examples:
         >>> from geoip_geocode.models import ProviderConfig, CacheConfig
-        >>> 
+        >>>
         >>> # Basic configuration with City database only
         >>> config = ProviderConfig(
         ...     name="geoip2-enriched",
         ...     city_database_path="./GeoLite2-City.mmdb"
         ... )
         >>> provider = MultiDatabaseGeoIP2Provider(config)
-        >>> 
+        >>>
         >>> # Full configuration with City + ASN + caching
         >>> config = ProviderConfig(
         ...     name="geoip2-enriched",
@@ -42,7 +43,7 @@ class MultiDatabaseGeoIP2Provider(BaseProvider):
         ... )
         >>> cache_config = CacheConfig(enabled=True, max_size=10000, ttl=3600)
         >>> provider = MultiDatabaseGeoIP2Provider(config, cache_config)
-        >>> 
+        >>>
         >>> # Perform enriched lookup
         >>> result = provider.lookup("8.8.8.8")
         >>> print(f"City: {result.city}, ASN: {result.asn}")
@@ -66,6 +67,9 @@ class MultiDatabaseGeoIP2Provider(BaseProvider):
         """
         super().__init__(config)
 
+        # Set locales for localized data
+        self.locales = config.locales if config.locales else ["en"]
+
         # Initialize cache
         if cache_config is None:
             cache_config = CacheConfig(enabled=False)
@@ -78,11 +82,11 @@ class MultiDatabaseGeoIP2Provider(BaseProvider):
                 "Either 'city_database_path' or 'database_path' must be provided"
             )
 
-        # Initialize City database reader
+        # Initialize City database reader with locales
         city_path = Path(city_db_path)
         if not city_path.exists():
             raise FileNotFoundError(f"City database not found: {city_db_path}")
-        self.city_reader = geoip2.database.Reader(str(city_path))
+        self.city_reader = geoip2.database.Reader(str(city_path), locales=self.locales)
 
         # Initialize ASN database reader (optional)
         self.asn_reader: Optional[geoip2.database.Reader] = None
@@ -284,11 +288,11 @@ class MultiDatabaseGeoIP2Provider(BaseProvider):
 
     def close(self) -> None:
         """Close all database readers."""
-        if hasattr(self, 'city_reader') and self.city_reader:
+        if hasattr(self, "city_reader") and self.city_reader:
             self.city_reader.close()
             self.city_reader = None
 
-        if hasattr(self, 'asn_reader') and self.asn_reader:
+        if hasattr(self, "asn_reader") and self.asn_reader:
             self.asn_reader.close()
             self.asn_reader = None
 
@@ -296,5 +300,5 @@ class MultiDatabaseGeoIP2Provider(BaseProvider):
         """Cleanup when provider is destroyed."""
         try:
             self.close()
-        except:
+        except Exception:
             pass  # Ignore errors during cleanup

@@ -14,6 +14,7 @@ This directory should contain the GeoIP database files used by the geoip-geocode
 **Download from**: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
 
 You'll need to:
+
 - Create a free MaxMind account
 - Download the MMDB format databases
 - Place them in this directory
@@ -26,6 +27,7 @@ You'll need to:
 **Download from**: https://lite.ip2location.com/
 
 You'll need to:
+
 - Create a free IP2Location account
 - Download the BIN format databases
 - Place them in this directory
